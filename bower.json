@@ -1,0 +1,14 @@
+{
+    "name": "angular-cesiumjs",
+    "version": "0.0.1",
+    "dependencies": {
+        "angular": "~1.0.7",
+        "angular-resource": "~1.0.7",
+        "cesiumjs" : "~1.1.0"
+    },
+    "devDependencies": {
+        "angular-mocks": "~1.0.7",
+        "angular-scenario": "~1.0.7"
+    }
+}
+
