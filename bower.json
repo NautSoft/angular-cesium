@@ -12,5 +12,12 @@
     "angular-scenario": "~1.2.0"
   },
   "main": "dist/angular-cesiumjs.js",
-  "ignore": []
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "src",
+    "test",
+    "Documentation"
+  ]
 }
