@@ -1,6 +1,6 @@
 {
 	"name": "angular-cesiumjs",
-	"version": "0.0.1-SNAPSHOT",
+	"version": "0.1.0-SNAPSHOT",
 	"license": "Apache v2",
 	"dependencies": {},
 	"devDependencies": {
