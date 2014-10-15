@@ -16,12 +16,19 @@
 		"**/.*",
 		"bower_components",
 		"node_modules",
+        "dist",
+        "misc",
+        "docs",
 		"src",
 		"test",
 		"Documentation",
 		"Gruntfile.js",
 		"package.json",
-		"karma-unit.conf.js",
-		"dist"
+        "karma.conf.js",
+        ".editorconfig",
+        ".gitignore",
+        ".jshintrc",
+        "README.md",
+        "LICENSE"
 	]
 }
