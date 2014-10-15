@@ -1,9 +1,9 @@
 /*
  * angular-cesiumjs
- * 
+ * http://maikuru.github.io/angular-cesiumjs
 
- * Version: 0.1.1 - 2014-10-14
- * License: Apache v2
+ * Version: 0.1.1-alpha.1 - 2014-10-15
+ * License: Apache-2.0
  */
 angular.module("cesiumjs", ["cesiumjs.tpls", "cesiumjs.viewer"]);
 angular.module("cesiumjs.tpls", ["template/viewer/viewer.html"]);

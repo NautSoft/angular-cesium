@@ -11,7 +11,7 @@
 		"angular-mocks": "~1.2.26",
 		"angular-scenario": "~1.2.26"
 	},
-	"main": "dist/angular-cesiumjs-0.1.1.js",
+	"main": "dist/angular-cesiumjs-0.1.1-alpha.1.js",
 	"ignore": [
 		"**/.*",
 		"bower_components",
@@ -23,6 +23,7 @@
 		"package.json",
 		"karma-unit.conf.js",
 		"dist/docs",
-		"dist/index.html"
+		"dist/index.html",
+        "template"
 	]
 }

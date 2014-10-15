@@ -1,22 +1,50 @@
 {
-	"name": "angular-cesiumjs",
-	"version": "0.1.1",
-	"license": "Apache v2",
-	"dependencies": {},
+	"name":     "angular-cesiumjs",
+    "homepage": "http://maikuru.github.io/angular-cesiumjs",
+    "version":  "0.1.1-alpha.1",
+    "license":  "Apache-2.0",
+    "author":   "Michael Lodge-Paolini (http://maikuru.github.io/angular-cesiumjs/)",
+
+    "repository": {
+        "type": "git",
+        "url" : "https://github.com/maikuru/angular-cesiumjs.git" },
+
+    "bugs": {
+        "url" : "https://github.com/maikuru/angular-cesiumjs/issues",
+        "email" : "info@myflipsidemedia.com"
+    },
+
+    "contributors": [],
+
+
+    "description":  "Wrapper for CesiumJS within an AngularJS application",
+    "keywords":     [
+        "angular",
+        "angularjs",
+        "cesium",
+        "cesiumjs"
+    ],
+
+	"dependencies": {
+        "bower": "^1.3.12"
+    },
+
 	"devDependencies": {
-		"grunt": ">0.4.1",
-		"grunt-ngdocs": ">0.1.1",
-		"grunt-conventional-changelog": ">0.1.2",
-		"grunt-contrib-concat": ">0.3.0",
-		"grunt-contrib-copy": ">0.5.0",
-		"grunt-contrib-uglify": ">0.3.0",
-		"grunt-contrib-watch": ">0.5.0",
-		"grunt-contrib-jshint": ">0.8.0",
-		"grunt-html2js": ">0.2.0",
-		"grunt-karma": ">0.4.4",
-		"node-highlight": ">0.1.1",
-		"semver": ">2.2.0",
-		"shelljs": ">0.2.0",
-		"grunt-ddescribe-iit": ">=0.0.4"
+        "grunt": "^0.4.5",
+        "grunt-cli": "^0.1.13",
+        "grunt-contrib-concat": "^0.5.0",
+        "grunt-contrib-copy": "^0.6.0",
+        "grunt-contrib-jshint": "^0.10.0",
+        "grunt-contrib-uglify": "^0.6.0",
+        "grunt-contrib-watch": "^0.6.1",
+        "grunt-conventional-changelog": "^1.1.0",
+        "grunt-ddescribe-iit": "^0.0.4",
+        "grunt-html2js": "^0.2.9",
+        "grunt-karma": "^0.9.0",
+		"grunt-ngdocs": "^0.2.5",
+        "karma": "^0.12.24",
+		"highlight": "^0.2.3",
+		"semver": "^4.0.3",
+		"shelljs": "^0.3.0"
 	}
 }
