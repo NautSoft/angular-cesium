@@ -21,6 +21,7 @@
         "docs",
 		"src",
 		"test",
+        "template/**/*.html.js",
 		"Documentation",
 		"Gruntfile.js",
 		"package.json",
