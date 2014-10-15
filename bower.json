@@ -1,6 +1,6 @@
 {
 	"name": "cesiumjs",
-	"version": "0.0.2",
+	"version": "0.1.1",
 	"license": "Apache 2.0",
 	"dependencies": {
 		"angular": "~1.2.26",
@@ -11,7 +11,7 @@
 		"angular-mocks": "~1.2.26",
 		"angular-scenario": "~1.2.26"
 	},
-	"main": "dist/angular-cesiumjs-.js",
+	"main": "dist/angular-cesiumjs-0.1.1.js",
 	"ignore": [
 		"**/.*",
 		"bower_components",
