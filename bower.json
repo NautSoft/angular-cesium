@@ -11,7 +11,7 @@
 		"angular-mocks": "^1.3.0",
 		"angular-scenario": "^1.3.0"
 	},
-	"main": "dist/angular-cesiumjs-0.1.1-alpha.1.js",
+	"main": "angular-cesiumjs-tpls.js",
 	"ignore": [
 		"**/.*",
 		"bower_components",
@@ -22,8 +22,6 @@
 		"Gruntfile.js",
 		"package.json",
 		"karma-unit.conf.js",
-		"dist/docs",
-		"dist/index.html",
-        "template"
+		"dist"
 	]
 }
