@@ -4,7 +4,6 @@
  * Portland Webworks, Inc.
  */
 angular.module('cesiumjs.viewer', [])
-
     .constant('viewerConfig', {
         animation: true,
         baseLayerPicker: true,
@@ -24,11 +23,22 @@ angular.module('cesiumjs.viewer', [])
         automaticallyTrackDataSourceClocks: true
     })
 
-    .controller('ViewerController', function($scope, $log, CesiumjsViewerService, viewerConfig) {
-        var service = CesiumjsViewerService;
-        $log.info('viewer controller init');
-        $log.info(viewerConfig);
-        $log.info(service);
+    .controller('ViewerController', function($scope, $attrs, $log) {
+        $log.info('viewerController init');
+        var self = this,
+            scope = $scope.$new();
+
+        function init(element, config) {
+            self.$element = element;
+
+            var mapId = self.$element[0].id || 'cesiumViewer';
+
+            //noinspection JSPotentiallyInvalidConstructorUsage
+            scope.cesiumViewer = new Cesium.viewer(mapId, config);
+        }
+
+        this.init = init;
+
     })
 
     .service('CesiumjsViewerService', function ($log) {
@@ -41,14 +51,20 @@ angular.module('cesiumjs.viewer', [])
         return {
             restrict: 'EA',
             controller: 'ViewerController',
-            transclude: true,
             replace: false,
             templateUrl: 'template/viewer/viewer.html',
-            link: function ($scope, element, attrs) {
-                $log.info('cesiumViewer');
-                $scope.cesiumViewer = new Cesium.Viewer(attrs.id, viewerConfig);
+            link: function (scope, element, attrs, viewerCtrl) {
+
+                if(!angular.isDefined(element[0]) || element[0].id === '') {
+                    $log.error('cesiumViewer: An ID must exist for Cesium to initialize');
+                    return;
+                }
+                var combinedConfig = angular.copy(viewerConfig);
+                angular.extend(combinedConfig, scope[attrs.config]);
+
+
+                viewerCtrl.init(element, combinedConfig);
             }
         };
-    });
-
-
+    })
+;
