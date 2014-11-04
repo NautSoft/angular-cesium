@@ -25,7 +25,7 @@ module.exports = function (grunt) {
 		filename: 'angular-cesiumjs',
 		filenamecustom: '<%= filename %>-custom',
 		meta: {
-			modules: 'angular.module("cesiumjs", [<%= srcModules %>]);',
+			modules: 'angular.module("cesiumjs", [<%= srcModules %>])',
 			tplmodules: 'angular.module("cesiumjs.tpls", [<%= tplModules %>]);',
 			all: 'angular.module("cesiumjs", ["cesiumjs.tpls", <%= srcModules %>]);',
 			banner: ['/*',

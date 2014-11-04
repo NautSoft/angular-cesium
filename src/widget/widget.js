@@ -5,7 +5,8 @@
  */
 angular.module('cesiumjs.widget', ['angular-md5'])
 
-    .controller('WidgetController', function($scope, $attrs, $log) {
+    .controller('WidgetController', ['$scope', '$attrs', '$log',
+        function($scope, $attrs, $log) {
         var _self = this,
             _scope = $scope.$new();
         var _service = $scope[$attrs.service];
@@ -29,9 +30,11 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 _scope.cesiumService = angular.noop;
             }
         };
-    })
+    }])
 
-    .service('CesiumjsWidgetService', function ($q, $log, md5, IMAGERY_PROVIDER, PIN_COLLECTION_MAKI) {
+    .service('CesiumjsWidgetService', [
+        '$q', '$log', 'md5', 'IMAGERY_PROVIDER', 'PIN_COLLECTION_MAKI',
+        function ($q, $log, md5, IMAGERY_PROVIDER, PIN_COLLECTION_MAKI) {
         $log.info('CesiumjsWidgetService: Init');
 
         var _imageryProviders    = {},
@@ -334,9 +337,11 @@ angular.module('cesiumjs.widget', ['angular-md5'])
         this.setCameraPosition = function(latitude, longitude, altitude) {
             _camera.setPositionCartographic( Cesium.Cartographic.fromDegrees(longitude, latitude, altitude) );
         };
-    })
+    }])
 
-    .directive('cesiumWidget', function ($log) {
+    .directive('cesiumWidget', [
+        '$log',
+        function ($log) {
         return {
             restrict: 'EA',
             controller: 'WidgetController',
@@ -354,5 +359,5 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 ctrl.init( element );
             }
         };
-    })
+    }])
 ;

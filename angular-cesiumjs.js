@@ -5,8 +5,7 @@
  * Version: 0.2.0 - 2014-11-04
  * License: Apache-2.0
  */
-angular.module("cesiumjs", ["cesiumjs.cesiumjs","cesiumjs.viewer","cesiumjs.widget"]);
-angular.module('cesiumjs', [])
+angular.module("cesiumjs", ["cesiumjs.widget"])
     .constant('IMAGERY_PROVIDER', {
         BING: {
             label:       'bing',
@@ -54,79 +53,7 @@ angular.module('cesiumjs', [])
     })
     .constant('PIN_COLLECTION_MAKI', {
         camera: 'camera'
-    })
-;
-
-/**
- * Created by michael
- * Copyright: 9/29/14
- * Portland Webworks, Inc.
- */
-angular.module('cesiumjs.viewer', [])
-    .constant('viewerConfig', {
-        animation: true,
-        baseLayerPicker: true,
-        fullscreenButton: true,
-        geocoder:	true,
-        homeButton: true,
-        infoBox: true,
-        sceneModePicker: true,
-        selectionIndicator: true,
-        timeline: true,
-        navigationHelpButton: true,
-        navigationInstructionsInitiallyVisible: true,
-        scene3DOnly: false,
-        useDefaultRenderLoop: true,
-        targetFrameRate: 48,
-        showRenderLoopErrors: true,
-        automaticallyTrackDataSourceClocks: true
-    })
-
-    .controller('ViewerController', function($scope, $attrs, $log) {
-        $log.info('viewerController init');
-        var self = this,
-            scope = $scope.$new();
-
-        function init(element, config) {
-            self.$element = element;
-
-            var mapId = self.$element[0].id || 'cesiumViewer';
-
-            //noinspection JSPotentiallyInvalidConstructorUsage
-            scope.cesiumViewer = new Cesium.viewer(mapId, config);
-        }
-
-        this.init = init;
-
-    })
-
-    .service('CesiumjsViewerService', function ($log) {
-        $log.info('Service Init');
-        this.viewer = null;
-    })
-
-    .directive('cesiumViewer', function ($log, viewerConfig) {
-        $log.info('cesiumViewer called' );
-        return {
-            restrict: 'EA',
-            controller: 'ViewerController',
-            replace: false,
-            templateUrl: 'template/viewer/viewer.html',
-            link: function (scope, element, attrs, viewerCtrl) {
-
-                if(!angular.isDefined(element[0]) || element[0].id === '') {
-                    $log.error('cesiumViewer: An ID must exist for Cesium to initialize');
-                    return;
-                }
-                var combinedConfig = angular.copy(viewerConfig);
-                angular.extend(combinedConfig, scope[attrs.config]);
-
-
-                viewerCtrl.init(element, combinedConfig);
-            }
-        };
-    })
-;
+    });
 
 /**
  * Created by michael
@@ -135,7 +62,9 @@ angular.module('cesiumjs.viewer', [])
  */
 angular.module('cesiumjs.widget', ['angular-md5'])
 
-    .controller('WidgetController', function($scope, $attrs, $log) {
+    .controller('WidgetController', [
+        '$scope', '$attrs', '$log',
+        function($scope, $attrs, $log) {
         var _self = this,
             _scope = $scope.$new();
         var _service = $scope[$attrs.service];
@@ -159,9 +88,11 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 _scope.cesiumService = angular.noop;
             }
         };
-    })
+    }])
 
-    .service('CesiumjsWidgetService', function ($q, $log, md5, IMAGERY_PROVIDER, PIN_COLLECTION_MAKI) {
+    .service('CesiumjsWidgetService', [
+        '$q', '$log', 'md5', 'IMAGERY_PROVIDER', 'PIN_COLLECTION_MAKI',
+        function ($q, $log, md5, IMAGERY_PROVIDER, PIN_COLLECTION_MAKI) {
         $log.info('CesiumjsWidgetService: Init');
 
         var _imageryProviders    = {},
@@ -464,9 +395,11 @@ angular.module('cesiumjs.widget', ['angular-md5'])
         this.setCameraPosition = function(latitude, longitude, altitude) {
             _camera.setPositionCartographic( Cesium.Cartographic.fromDegrees(longitude, latitude, altitude) );
         };
-    })
+    }])
 
-    .directive('cesiumWidget', function ($log) {
+    .directive('cesiumWidget', [
+        '$log',
+        function ($log) {
         return {
             restrict: 'EA',
             controller: 'WidgetController',
@@ -484,5 +417,4 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 ctrl.init( element );
             }
         };
-    })
-;
+    }]);
