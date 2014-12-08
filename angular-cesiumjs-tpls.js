@@ -2,11 +2,11 @@
  * angular-cesiumjs
  * http://maikuru.github.io/angular-cesiumjs
 
- * Version: 0.2.0 - 2014-11-04
+ * Version: 0.2.1 - 2014-12-08
  * License: Apache-2.0
  */
-'use strict';
-angular.module("cesiumjs", ["cesiumjs.widget"])
+angular.module('cesiumjs', ['cesiumjs.tpls', 'cesiumjs.widget'])
+angular.module('cesiumjs', ['cesiumjs.widget'])
     .constant('IMAGERY_PROVIDER', {
         BING: {
             label:       'bing',
@@ -20,32 +20,43 @@ angular.module("cesiumjs", ["cesiumjs.widget"])
 
         BLACK_MARBLE: {
             label:         'blackMarble',
-            customLabel:   'blackMarble',
             url:           'http://dev.virtualearth.net',
             ellipsoid:     Cesium.Ellipsoid.WGS84,
-            maximumLevel:  8,
-            active:        true,
-            online:        true
+            maximumLevel:  8
         },
 
         NATURAL_EARTH_II: {
             label:       'naturalEarthII',
-            customLabel: 'naturalEarthII',
             url:         'bower_components/cesiumjs/Build/Cesium/Assets/Textures/NaturalEarthII',
-            ellipsoid:   Cesium.Ellipsoid.WGS84,
-            active:      true,
-            online:      false
+            ellipsoid:   Cesium.Ellipsoid.WGS84
         },
 
-        WORLDSAT_EARTH: {
-            label:       'SeattleMoF',
-            customLabel: 'SeattleMoF',
-            url:         'http://localhost:8080/geoserver/Seattle.MoF/wms',
-            ellipsoid:   Cesium.Ellipsoid.WGS84,
-            active:      true,
-            online:      false
-        }
+        WEB_MAP_SERVICE: {
+            label:       'WebMapService',
+            url:         'http://localhost:8080/geoserver/example/wms',
+            layers:      '',
+            ellipsoid:   Cesium.Ellipsoid.WGS84
+        },
 
+        SINGLE_TILE: {
+            label:       'SingleTile',
+            url:         '/path/to/file',
+            credit:      ''
+        },
+
+        TILE_MAP_SERVICE: {
+            label:          'TileMapService',
+            url:            '/path/to/files/onServer',
+            credit:         '',
+            fileExtension:  'png',
+            minimumLevel:   0,
+            maximumLevel:   13,
+            // rectangle:      Cesium.Rectangle.MAX_VALUE,
+            ellipsoid:      Cesium.Ellipsoid.WGS84,
+            tilingScheme:   Cesium.GeographicTilingScheme,
+            tileWidth:      256,
+            tileHeight:     256
+        }
     })
     .constant('SCENE_MODE', {
         'scene2d':       Cesium.SceneMode.SCENE2D,
@@ -54,13 +65,16 @@ angular.module("cesiumjs", ["cesiumjs.widget"])
     })
     .constant('PIN_COLLECTION_MAKI', {
         camera: 'camera'
-    });
+    })
+;
 
+angular.module('cesiumjs.tpls', []);
 /**
  * Created by michael
  * Copyright: 10/31/14
  * Portland Webworks, Inc.
  */
+
 angular.module('cesiumjs.widget', ['angular-md5'])
 
     .controller('WidgetController', [
@@ -71,31 +85,28 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              * @param element
              */
             this.init = function(element) {
-                $log.info('WidgetController: init');
-                try {
-                    this.$element = element;
+                $log.debug('WidgetController: init');
+                this.$element = element;
 
-                    var mapId = this.$element[0].id,
-                        options = {
-                            scene3DOnly: $attrs.scene3dOnly.toLowerCase() === 'true' || $attrs.scene3dOnly === '1'
-                        };
+                var mapId = this.$element[0].id,
+                    options = {
+                        scene3DOnly: $attrs.scene3dOnly.toLowerCase() === 'true' || $attrs.scene3dOnly === '1'
+                    };
 
-                    CesiumjsWidgetService.initViewer(mapId, options);
-                    //$scope.cesiumService = CesiumjsWidgetService;
-                } catch(exception) {
-                    $log.info('WidgetController: failed to initialize');
-                    $log.error('WidgetController: '+exception.message);
+                if ($attrs.noDefaultImagery.toLowerCase() === 'true' || $attrs.noDefaultImagery === '1') {
+                    options.imageryProvider = false;
                 }
+
+                CesiumjsWidgetService.initViewer(mapId, options);
             };
-        }])
+        }
+    ])
 
     .service('CesiumjsWidgetService', [
         '$q', '$log', 'md5', 'IMAGERY_PROVIDER', 'PIN_COLLECTION_MAKI',
 
         function ($q, $log, md5, IMAGERY_PROVIDER, PIN_COLLECTION_MAKI) {
-            var _imageryProviders,
-                _activeProvider,
-                _viewer,
+            var _viewer,
                 _scene,
                 _clock,
                 _primitives,
@@ -105,6 +116,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 _billboardPins,
                 _customMarkers,
                 _polyLineCollection,
+                _labeledImageryLayers,
                 _polyLines,
                 _readyDeferred = $q.defer(),
                 _promises = [_readyDeferred.promise],
@@ -112,6 +124,49 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 _math = Cesium.Math;
 
             this.animationMethod = null;
+
+            /**
+             *
+             * @param div {string}
+             * @param options {{showRenderLoopErrors:boolean}}
+             */
+            this.initViewer = function(div, options) {
+                $log.debug('CesiumjsWidgetService: initViewer started');
+                if (!angular.isDefined(_viewer) || _viewer.isDestroyed()) {
+                    $log.debug('CesiumjsWidgetService: initViewer creating widget');
+
+                    options.showRenderLoopErrors = true;
+                    options.targetFrameRate = 60;
+
+                    _viewer                 = new Cesium.CesiumWidget(div, options);
+                    _viewer.resolutionScale = 2.0;
+
+                    _scene                  = _viewer.scene;
+                    _clock                  = _viewer.clock;
+
+                    _camera                 = _scene.camera;
+                    _primitives             = _scene.primitives;
+                    _primitives.globe       = new Cesium.Globe( Cesium.Ellipsoid.WGS84 );
+
+                    _labeledImageryLayers   = _labeledImageryLayers || {};
+                    _polyLineCollection     = _primitives.add(new Cesium.PolylineCollection());
+                    _billboardCollection    = _primitives.add(new Cesium.BillboardCollection());
+                    _pinBuilder             = new Cesium.PinBuilder();
+
+                    _primitives.globe    = new Cesium.Globe( Cesium.Ellipsoid.WGS84 );
+                    _scene.sun           = new Cesium.Sun();
+                    _scene.moon          = new Cesium.Moon();
+                    _scene.skyAtmosphere = new Cesium.SkyAtmosphere();
+                    _scene.skyBox        = this.generateSkyBox();
+
+                } else if ( angular.isDefined(_viewer) ) {
+                    $log.warn('CesiumjsWidgetService: initViewer already exists');
+                }
+
+                _readyDeferred.resolve(function() {
+                    $log.debug('CesiumjsWidgetService: init Viewer success');
+                });
+            };
 
             /**
              *
@@ -124,8 +179,8 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              * @param shown {boolean}
              */
             this.addCustomMarker = function(label, imagePath, size, latitude, longitude, altitude, shown) {
-                $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: addCustomMarker ' + imagePath + ' [' + latitude + ',' + longitude + ']');
+                this.whenReady(function() {
+                    $log.debug('CesiumjsWidgetService: addCustomMarker ' + imagePath + ' [' + latitude + ',' + longitude + ']');
                     var hash = md5.createHash(label);
 
                     _customMarkers = _customMarkers || {};
@@ -142,6 +197,12 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 });
             };
 
+            this.addImageryLayer = function(label, provider) {
+                this.whenReady(function() {
+                    _labeledImageryLayers[label] = _scene.imageryLayers.addImageryProvider(provider);
+                });
+            };
+
             /**
              *
              * @param label
@@ -155,7 +216,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.addMarker = function(label, type, cssColorString, size, latitude, longitude, shown) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: addMarker ' + type + ' [' + latitude + ',' + longitude + ']');
+                    $log.debug('CesiumjsWidgetService: addMarker ' + type + ' [' + latitude + ',' + longitude + ']');
 
                     _billboardPins = _billboardPins || {};
 
@@ -169,7 +230,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
 
                     Cesium.when(_pinBuilder.fromMakiIconId(type, color, size),
                         function (canvas) {
-                            $log.info('CesiumjsWidgetService: addMarker canvas created');
+                            $log.debug('CesiumjsWidgetService: addMarker canvas created');
                             _billboardPins[billboardHash] = _billboardCollection.add({
                                 image: canvas,
                                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
@@ -191,7 +252,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
             this.addPolyLine = function(label, points, color, clearPrevious) {
                 $q.all(_promises).then( function() {
 
-                    $log.info('CesiumjsWidgetService: addPolyLine');
+                    $log.debug('CesiumjsWidgetService: addPolyLine');
                     _polyLines = _polyLines || {};
 
                     if (clearPrevious) {
@@ -239,7 +300,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
             };
 
             /**
-             *
+             * for raw camera animations.  use only when you're sure that cesium is ready
              * @param action {string}
              * @param valueInDegrees {number}
              */
@@ -276,7 +337,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.adjustClock = function(options) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: adjusting Clock');
+                    $log.debug('CesiumjsWidgetService: adjusting Clock');
                     $log.debug(options);
 
                     options = angular.isObject(options) ? options : {};
@@ -312,7 +373,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.enableDebug = function(enable) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: enableDebug ' + enable);
+                    $log.debug('CesiumjsWidgetService: enableDebug ' + enable);
                     _scene.debugShowFramesPerSecond = !!enable;
                 });
             };
@@ -323,7 +384,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.enableDefaultHandlers = function(enable) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: enableDefaultHandlers ' + enable);
+                    $log.debug('CesiumjsWidgetService: enableDefaultHandlers ' + enable);
                     enable = !!enable;
                     _scene.screenSpaceCameraController.enableLook = enable;
                     _scene.screenSpaceCameraController.enableTilt = enable;
@@ -339,9 +400,21 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.enableMoon = function(enable) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: enableMoon ' + enable);
+                    $log.debug('CesiumjsWidgetService: enableMoon ' + enable);
                     _viewer.scene.moon.show = !!enable;
                 });
+            };
+
+            /**
+             *
+             * @param enable
+             */
+            this.enableSkyAtmosphere = function(enable) {
+                $q.all(_promises).then( function() {
+                    $log.debug('CesiumjsWidgetService: enableAtmosphere ' + enable);
+                    _scene.skyAtmosphere.show = !!enable;
+                });
+
             };
 
             /**
@@ -349,9 +422,9 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              * @param enable {boolean}
              */
             this.enableSkyBox = function(enable) {
-                $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: enableSkyBox ' + enable);
-                    _viewer.scene.skyAtmosphere.show = !!enable;
+                this.whenReady(function(){
+                    $log.debug('CesiumjsWidgetService: enableSkyBox ' + enable);
+                    _scene.skyAtmosphere.show = !!enable;
                 });
             };
 
@@ -361,74 +434,78 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.enableSun = function(enable) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: enableSun ' + enable);
-                    _viewer.scene.sun.show = !!enable;
+                    $log.debug('CesiumjsWidgetService: enableSun ' + enable);
+                    _scene.sun.show = !!enable;
                 });
             };
 
             /**
              *
              * @param provider {{label: string, url:string}}
+             * @return ImageryLayer|null
              */
             this.generateImageryProvider = function(provider) {
-                $log.info('CesiumjsWidgetService: generateImageryProvider ' + provider.label);
+                $log.debug('CesiumjsWidgetService: generateImageryProvider ' + provider.label);
                 $log.debug(provider);
-                _imageryProviders = _imageryProviders || {};
+                var layer;
 
                 switch(provider.label) {
                     case IMAGERY_PROVIDER.BING.label: {
                         var key = provider.apiKey || Cesium.BingMapsApi.defaultKey;
                         Cesium.BingMapsApi.defaultKey = key;
-
-                        _imageryProviders[provider.customLabel] = new Cesium.BingMapsImageryProvider({
+                        layer = new Cesium.BingMapsImageryProvider({
                             url : provider.url,
                             key : key,
                             mapStyle : Cesium.BingMapsStyle.AERIAL
                         });
-
                         break;
                     }
 
                     case IMAGERY_PROVIDER.BLACK_MARBLE.label: {
-                        _imageryProviders[provider.customLabel] = new Cesium.TileMapServiceImageryProvider({
+                        layer = new Cesium.TileMapServiceImageryProvider({
                             url:          provider.url,
                             maximumLevel: provider.maximumLevel
                         });
-
                         break;
                     }
 
                     case IMAGERY_PROVIDER.NATURAL_EARTH_II.label: {
-                        _imageryProviders[provider.customLabel] = new Cesium.TileMapServiceImageryProvider({
+                        layer = new Cesium.TileMapServiceImageryProvider({
                             url: provider.url
                         });
-
                         break;
                     }
 
-                    case IMAGERY_PROVIDER.WORLDSAT_EARTH.label: {
-                        $log.warn('WORLDSAT not yet implemented');
-//					var provider = new Cesium.WebMapServiceImageryProvider({
-//						url: '//sampleserver1.arcgisonline.com/ArcGIS/services/Specialty/ESRI_StatesCitiesRivers_USA/MapServer/WMSServer',
-//						layers : '0',
-//						proxy: new Cesium.DefaultProxy('/proxy/')
-//					});
-//
-//					viewer.scene.imageryLayers.addImageryProvider(provider);
-//
-//// This line is not required to use a WMS imagery layer, but adding it will enable automatic
-//// display of WMS feature information (if available) on click.
-//					viewer.extend(Cesium.viewerEntityMixin);
+                    case IMAGERY_PROVIDER.WEB_MAP_SERVICE.label: {
+                        layer = new Cesium.WebMapServiceImageryProvider( {
+                            url:          provider.url,
+                            layers:       provider.layers,
+                            maximumLevel: provider.maximumLevel,
+                            minimumLevel: provider.minimumLevel,
+                            parameters:   provider.parameters
+                        });
                         break;
                     }
 
-                    default:
+                    case IMAGERY_PROVIDER.SINGLE_TILE.label: {
+                        layer = new Cesium.SingleTileImageryProvider({
+                            url: provider.url
+                        });
+                        break;
+                    }
+
+                    case IMAGERY_PROVIDER.TILE_MAP_SERVICE.label: {
+                        layer = new Cesium.TileMapServiceImageryProvider( provider );
+                        break;
+                    }
+
+                    default: {
                         $log.error('no supported image provider:' + provider.label);
+                        return null;
+                    }
                 }
 
-                if (!_activeProvider) {
-                    this.setActiveProvider(provider.customLabel);
-                }
+                return layer;
             };
 
             /**
@@ -437,18 +514,21 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.generateSkyBox = function() {
 
-                $log.info('CesiumjsWidgetService: generateSkyBox');
-                $log.error('CesiumjsWidgetService: generateSkyBox Error: Should not use this.' +
-                '  Custom SkyBox is not refreshing so sun smears');
+                //$log.debug('CesiumjsWidgetService: generateSkyBox');
+                //$log.error('CesiumjsWidgetService: generateSkyBox Error: Should not use this.' +
+                //'  Custom SkyBox is not refreshing so sun smears');
 
                 var skyBoxBaseUrl = 'bower_components/cesiumjs/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80';
-                return new Cesium.SkyBox({
-                    positiveX : skyBoxBaseUrl + '_px.jpg',
-                    negativeX : skyBoxBaseUrl + '_mx.jpg',
-                    positiveY : skyBoxBaseUrl + '_py.jpg',
-                    negativeY : skyBoxBaseUrl + '_my.jpg',
-                    positiveZ : skyBoxBaseUrl + '_pz.jpg',
-                    negativeZ : skyBoxBaseUrl + '_mz.jpg'
+                return Cesium.SkyBox({
+                    show: false,
+                    sources : {
+                        positiveX: skyBoxBaseUrl + '_px.jpg',
+                        negativeX: skyBoxBaseUrl + '_mx.jpg',
+                        positiveY: skyBoxBaseUrl + '_py.jpg',
+                        negativeY: skyBoxBaseUrl + '_my.jpg',
+                        positiveZ: skyBoxBaseUrl + '_pz.jpg',
+                        negativeZ: skyBoxBaseUrl + '_mz.jpg'
+                    }
                 });
             };
 
@@ -476,7 +556,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.hideAllCustomMarkers = function() {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideAllMarkers ');
+                    $log.debug('CesiumjsWidgetService: hideAllMarkers ');
                     _customMarkers = _customMarkers || {};
 
                     angular.forEach(_customMarkers, function(marker) {
@@ -490,7 +570,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.hideAllMarkers = function() {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideAllMarkers ');
+                    $log.debug('CesiumjsWidgetService: hideAllMarkers ');
                     _billboardPins = _billboardPins || {};
 
                     angular.forEach(_billboardPins, function(pin) {
@@ -505,7 +585,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.hideCustomMarker = function(label) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideCustomMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: hideCustomMarker ' + label);
 
                     _customMarkers = _customMarkers || {};
 
@@ -522,7 +602,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.hideMarker = function(label) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: hideMarker ' + label);
 
                     _billboardPins = _billboardPins || {};
 
@@ -535,61 +615,6 @@ angular.module('cesiumjs.widget', ['angular-md5'])
 
             /**
              *
-             * @param div {string}
-             * @param options {{}}
-             */
-            this.initViewer = function(div, options) {
-                try {
-                    $log.info('CesiumjsWidgetService: initViewer started');
-                    if (!angular.isDefined(_viewer) || _viewer.isDestroyed()) {
-                        $log.info('CesiumjsWidgetService: initViewer creating widget');
-                        _viewer                 = new Cesium.CesiumWidget(div, options);
-                        _viewer.targetFrameRate = 60;
-                        _viewer.resolutionScale = 2.0;
-
-                        _scene                  = _viewer.scene;
-                        _clock                  = _viewer.clock;
-
-                        _camera                 = _scene.camera;
-                        _primitives             = _scene.primitives;
-
-                        _polyLineCollection     = _primitives.add(new Cesium.PolylineCollection());
-                        _billboardCollection    = _primitives.add(new Cesium.BillboardCollection());
-                        _pinBuilder             = new Cesium.PinBuilder();
-
-                        _scene.sun           = new Cesium.Sun();
-                        _scene.moon          = new Cesium.Moon();
-                        _scene.skyAtmosphere = new Cesium.SkyAtmosphere();
-
-                        //select image tile for cesium to use
-                        var provider = _imageryProviders[_activeProvider];
-                        var ellipsoid = provider.ellipsoid || Cesium.Ellipsoid.WGS84;
-
-                        var globe = new Cesium.Globe( ellipsoid );
-                        globe.imageryLayers.addImageryProvider( provider );
-                        globe.enableLighting  = true;
-                        globe.showWaterEffect = false;
-                        _primitives.globe = globe;
-
-                    } else if ( angular.isDefined(_viewer) ) {
-                        $log.warn('CesiumjsWidgetService: initViewer already exists');
-                    }
-
-                    _readyDeferred.resolve(function() {
-                        $log.info('CesiumjsWidgetService: init Viewer success');
-                    });
-
-                } catch(e) {
-                    _readyDeferred.reject(function() {
-                        $log.info('CesiumjsWidgetService: init Viewer failed');
-                        $log.error('CesiumjsWidgetService: ' + e.message);
-                    });
-
-                }
-            };
-
-            /**
-             *
              * @param label {string}
              * @param latitude {number}
              * @param longitude {number}
@@ -597,7 +622,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.moveCustomMarker = function(label, latitude, longitude, altitude) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: moveCustomMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: moveCustomMarker ' + label);
 
                     _customMarkers = _customMarkers || {};
 
@@ -613,7 +638,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.removeAllMarkers = function() {
                 $q.all(_promises).then(function() {
-                    $log.info('CesiumjsWidgetService: removeAllMarkers ' + _billboardCollection.length);
+                    $log.debug('CesiumjsWidgetService: removeAllMarkers ' + _billboardCollection.length);
                     if (_billboardCollection.length > 0) {
                         _billboardCollection.removeAll();
                     }
@@ -626,7 +651,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.removeAllPolyLines = function() {
                 $q.all(_promises).then(function() {
-                    $log.info('CesiumjsWidgetService: removeAllPolyLines ' + _polyLineCollection.length);
+                    $log.debug('CesiumjsWidgetService: removeAllPolyLines ' + _polyLineCollection.length);
                     if (_polyLineCollection.length > 0) {
                         _polyLineCollection.removeAll();
                     }
@@ -639,16 +664,16 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              * @param label
              */
             this.removeMarker = function(label) {
-                $log.info('CesiumjsWidgetService: removeMarker deferring ' + label);
+                $log.debug('CesiumjsWidgetService: removeMarker deferring ' + label);
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: removeMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: removeMarker ' + label);
 
                     _billboardPins = _billboardPins || {};
 
-                    var billboardHash = md5.createHash(label);
-                    if (angular.isDefined(_billboardPins[billboardHash])) {
-                        _billboardCollection.remove(_billboardPins[billboardHash]);
-                        delete _billboardPins[billboardHash];
+                    var hash = md5.createHash(label);
+                    if (angular.isDefined(_billboardPins[hash])) {
+                        _billboardCollection.remove(_billboardPins[hash]);
+                        delete _billboardPins[hash];
                     }
                 });
             };
@@ -666,15 +691,21 @@ angular.module('cesiumjs.widget', ['angular-md5'])
 
             /**
              *
-             * @param customLabel {string}
+             * @param label {string}
              */
-            this.setActiveProvider = function(customLabel) {
-                $log.info('CesiumjsWidgetService: setActiveProvider: ' + customLabel);
-                if (angular.isDefined(_imageryProviders[customLabel])) {
-                    _activeProvider = customLabel;
-                } else {
-                    $log.error('CesiumjsWidgetService: setActiveProvider failed ' + customLabel + 'does not exist');
-                }
+            this.setActiveLayer = function(label) {
+                this.whenReady(function() {
+                    if (angular.isDefined(_labeledImageryLayers[label])) {
+                        _labeledImageryLayers[label].alpha = 1.0;
+                        _scene.imageryLayers.raiseToTop(_labeledImageryLayers[label]);
+                        for (var i = 1; i < _scene.imageryLayers; i++) {
+                            _scene.imageryLayers.get(i).alpha = 0.0;
+                        }
+
+                    } else {
+                        $log.error('CesiumjsWidgetService: setActiveProvider failed ' + label + ' does not exist');
+                    }
+                });
             };
 
             /**
@@ -686,7 +717,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.setCameraPosition = function(latitude, longitude, altitude, animate) {
                 $q.all(_promises).then( function() {
-                    //$log.info('CesiumjsWidgetService: setCameraPosition: [' + latitude+','+longitude+']');
+                    //$log.debug('CesiumjsWidgetService: setCameraPosition: [' + latitude+','+longitude+']');
                     if (!!animate) {
                         _camera.flyTo({
                             destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, altitude)
@@ -702,6 +733,14 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                 });
             };
 
+            /**
+             * for raw camera animations.  use only when you're sure that cesium is ready
+             * @param latitude
+             * @param longitude
+             * @param altitude
+             * @param animate
+             * @private
+             */
             this._setCameraPosition = function(latitude, longitude, altitude, animate) {
                 if (!angular.isDefined(_camera)) {
                     return;
@@ -715,10 +754,14 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                     _camera.setPositionCartographic(Cesium.Cartographic.fromDegrees(longitude, latitude, altitude));
                 }			};
 
+            /**
+             *
+             * @param goFullScreen {boolean}
+             */
             this.setFullScreen = function(goFullScreen) {
                 $q.all(_promises).then( function() {
                     if (!!goFullScreen) {
-                        $log.info('CesiumjsWidgetService: setFullScreen mode: ' + !!goFullScreen);
+                        $log.debug('CesiumjsWidgetService: setFullScreen mode: ' + !!goFullScreen);
                         Cesium.Fullscreen.requestFullscreen(_scene.canvas);
 
                     } else {
@@ -734,7 +777,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.setSceneMode = function(mode, animate) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: Screen mode setting to: ' + mode);
+                    $log.debug('CesiumjsWidgetService: Screen mode setting to: ' + mode);
 
                     animate = animate === null ? true : !!animate;
 
@@ -786,7 +829,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.showAllMarkers = function() {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: shpowAllMarkers ');
+                    $log.debug('CesiumjsWidgetService: shpowAllMarkers ');
                     _billboardPins = _billboardPins || {};
 
                     angular.forEach(_billboardPins, function(pin) {
@@ -801,7 +844,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.showCustomMarker = function(label) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: hideMarker ' + label);
 
                     _customMarkers = _customMarkers || {};
 
@@ -818,7 +861,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              */
             this.showMarker = function(label) {
                 $q.all(_promises).then( function() {
-                    $log.info('CesiumjsWidgetService: hideMarker ' + label);
+                    $log.debug('CesiumjsWidgetService: hideMarker ' + label);
 
                     _billboardPins = _billboardPins || {};
 
@@ -830,7 +873,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
             };
 
             /**
-             *
+             * for raw camera animations.  use only when you're sure that cesium is ready pair with whenReady()
              */
             this.tick = function() {
                 //$q.all(_promises).then( function() {
@@ -850,14 +893,16 @@ angular.module('cesiumjs.widget', ['angular-md5'])
              * @returns {promise}
              */
             this.whenReady = function(callback) {
-                $log.info('CesiumjsWidgetService: whenReady');
+                $log.debug('CesiumjsWidgetService: whenReady');
                 if (angular.isFunction(callback)) {
                     $q.all(_promises).then(callback);
                 }
 
                 return $q.all(_promises).promise;
             };
-        }])
+        }
+    ])
+
     .directive('cesiumWidget', [
         '$log',
         function ($log) {
@@ -875,4 +920,7 @@ angular.module('cesiumjs.widget', ['angular-md5'])
                     ctrl.init( element );
                 }
             };
-        }]);
+        }
+    ])
+;
+
